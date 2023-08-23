@@ -1,0 +1,68 @@
+#include "esp32-hal-ledc.h" // библиотека ШИМа
+#include <ESP32Servo.h>
+
+#define FAN_COLLECTOR_PIN 16
+#define SERVO_PIN 17
+
+//частота ШИМ
+#define SERVO_FREQUENCY 50 // стандартная частота для серво
+#define FAN_FREQUENCY 30000
+//канал, на который назначим в дальнейшем ШИМ (от 0 до 16) (или до 15)
+#define PWM_FAN_CHANNEL 0
+//разрешение ШИМа (в битах)    
+#define RESOLUTION 8 // при 8 2^8 = 256 (ШИМ сигнал от 0 до 256)
+
+
+Servo myservo;  // create servo object to control a servo
+
+
+void changeFanSpeed(int power);
+
+
+void setup() {
+  // Для того, чтобы ШИМ использовали разные таймеры
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  
+  Serial.begin(115200);
+  
+  ledcSetup(PWM_FAN_CHANNEL, FAN_FREQUENCY, RESOLUTION);
+  ledcAttachPin(FAN_COLLECTOR_PIN, PWM_FAN_CHANNEL);
+
+  myservo.setPeriodHertz(SERVO_FREQUENCY); 
+  myservo.attach(SERVO_PIN, 500, 2400); // attaches the servo on pin 18 to the servo object
+  
+  changeFanSpeed(100);
+}
+
+void loop() {
+//  while (Serial.available() != 0) {    //wait for data available
+//    String inp = Serial.readString();
+//    inp.trim();
+//    if (inp[0] == 'S') {
+//      changeServoPosition(inp.substring(1).toInt());
+//    } else if (inp[0] == 'F') {
+//      Serial.print("Pos: ");
+//      Serial.println(pos);
+//      changeFanSpeed(inp.substring(1).toInt());
+//    }
+//  }
+  myservo.write(0);
+  delay(1000);
+  myservo.write(90);
+  delay(1000);
+}
+
+
+
+void changeFanSpeed(int power) { // Должна получить значение силы в процентах
+  if (power == 0) {
+    ledcWrite(PWM_FAN_CHANNEL, 0);
+  } else {
+    int max_power = pow(2, RESOLUTION) - 1;
+    ledcWrite(PWM_FAN_CHANNEL, max_power); // максимальная мощность для запуска
+    delay(500);
+    ledcWrite(PWM_FAN_CHANNEL, map(power, 1, 100, max_power / 1.9, max_power)); // для более корректной работы
+  }
+}
