@@ -1,0 +1,35 @@
+#include "esp32-hal-ledc.h" // библиотека ШИМа
+#define SERVO_PIN 17
+
+//частота ШИМ
+#define SERVO_FREQUENCY 50
+//канал, на который назначим в дальнейшем ШИМ (от 0 до 16) (или до 15)
+#define PWM_SERVO_CHANNEL 1
+//разрешение ШИМа (в битах)    
+#define RESOLUTION 8 // при 8 2^8 = 256 (ШИМ сигнал от 0 до 256)
+
+void changeServoPosition(int pos) {
+  Serial.print("Pos: ");
+  Serial.println(pos);
+  if (pos == 0) {
+    ledcWrite(PWM_SERVO_CHANNEL, 10); 
+  } else if (pos == 1) {
+    ledcWrite(PWM_SERVO_CHANNEL, 21);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  ledcSetup(PWM_SERVO_CHANNEL, SERVO_FREQUENCY, RESOLUTION); // устанавливаем базовые параметры ШИМ
+  ledcAttachPin(SERVO_PIN, PWM_SERVO_CHANNEL);
+
+}
+
+void loop() {
+  while (Serial.available() != 0) {    //wait for data available
+    String inp = Serial.readString();  //read until timeout
+    inp.trim();
+    changeServoPosition(inp.toInt());
+  }
+
+}
