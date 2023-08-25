@@ -1,0 +1,94 @@
+import socket
+import numpy as np
+import matplotlib.pyplot as plt
+from random import randint as rn
+import time
+
+HOST = ''  # Server IP or Hostname # '192.168.37.63'
+PORT = 6969  # Pick an open Port (1000+ recommended, 65xxx > port), must match the client sport
+
+LOW_TEMP = 22
+HIGH_TEMP = 26
+
+SECOND = "10.42.0.215"
+FIRST = "10.42.0.245"
+
+mas, mas_2 = [], []
+
+
+def toFixed(numObj, digits=0):
+    return f"{numObj:.{digits}f}"
+
+
+def calibrate_temp(now_temp, prev_temp):
+    if now_temp > prev_temp:
+        return float(toFixed(min(now_temp, prev_temp + 0.87), 2))
+    else:
+        return float(toFixed(max(now_temp, prev_temp + 0.87), 2))
+
+
+def procent_fan(temp_inside, temp_outside):
+    procent = min(temp_inside - HIGH_TEMP, 3) / 0.03  # Если разница больше 3-ёх, то скорость 100%
+    return procent
+
+
+def graf(temp_inside, temp_outside, fanspeed, servo):
+    with open("web/data.txt", 'w') as file:
+        data = [temp_inside, temp_outside, fanspeed, servo]
+        for i in data: file.write(f'{i}\n')
+    mas.append(temp_inside)
+    mas_2.append(temp_outside)
+    if len(mas) >= 30:
+        mas.pop(0)
+        mas_2.pop(0)
+
+
+    x_inside = np.arange(1, len(mas)+1)
+    y_inside = np.array(mas)
+    x_outside = np.arange(1, len(mas_2)+1)
+    y_outside = np.array(mas_2)
+
+    plt.title("Line graph") # Секунда X
+    plt.ylabel("TEMP")
+    plt.xlabel("TIME")
+    plt.plot(x_inside, y_inside, color="red")
+    plt.plot(x_outside, y_outside, color="blue")
+    plt.savefig('web/graph.jpg')
+    plt.close()
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, PORT))
+s.listen(2)
+# mas, n = ["S1 F1", "S0 F20", "S1 F40", "S0 F60", "S1 F80", "S0 F100"], 0
+
+while True:
+    pair = [rn(2000, 3000) / 100, rn(2000, 3000) / 100]  #pair[0] - temp_inside, pair[1] - temp_outside
+    # conn, addr = s.accept()
+    # data = str(conn.recv(1024))[2:-1]
+    # print(data)
+    # if addr[0] == FIRST:
+    #     temp_inside = calibrate_temp(float(data), mas[-1])
+    #     pair[0] = temp_inside
+    #     print(f'Inside: {temp_inside}')
+    # else:
+    #     temp_outside = calibrate_temp(float(data), mas_2[-1])
+    #     pair[1] = temp_outside
+    #     print(f'Outside: {temp_outside}')
+
+    if pair[0] == 0 or pair[1] == 0:
+        continue
+    # if addr[0] == FIRST:
+    fan_speed, servo_state = 0, 0
+    if LOW_TEMP <= pair[0] <= HIGH_TEMP or abs(pair[0] - pair[1]) <= 1:
+        fan_speed, servo_state = 0, 0
+        # conn.send(f'S0 F0'.encode('utf-8'))
+    elif pair[0] > HIGH_TEMP and pair[0] > pair[1]:
+        fan_speed, servo_state = procent_fan(pair[0], pair[1]), 0
+        # conn.send(f'S0 F{fan_speed}'.encode('utf-8'))
+    elif pair[0] < LOW_TEMP and pair[1] > pair[0]:
+        fan_speed, servo_state = 0, 1
+        # conn.send(f'S1 F0'.encode('utf-8'))
+    print(pair[0], pair[1], toFixed(fan_speed, 2), servo_state)
+    graf(pair[0], pair[1], toFixed(fan_speed, 2), servo_state)
+    pair = [0, 0]
+    #time.sleep(1)
